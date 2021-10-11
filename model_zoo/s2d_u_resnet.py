@@ -118,7 +118,7 @@ class S2DUResNet(nn.Module):
         stride = 2
         self.convt5 = convt_bn_relu(in_channels=512, out_channels=256,
                                     kernel_size=kernel_size, stride=stride, padding=1, output_padding=1)
-        self.convt4 = convt_bn_relu(in_channels=768, out_channels=128,
+        self.convt4 = convt_bn_relu(in_channels=(512 + 256), out_channels=128,
                                     kernel_size=kernel_size, stride=stride, padding=1, output_padding=1)
         self.convt3 = convt_bn_relu(in_channels=(256 + 128), out_channels=64,
                                     kernel_size=kernel_size, stride=stride, padding=1, output_padding=1)

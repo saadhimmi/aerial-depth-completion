@@ -115,13 +115,13 @@ class ConfidenceDepthFrameworkFactory():
         cdfmodel = ConfidenceDepthFrameworkModel()
 
         cdfmodel.dc_model = None
-        cdfmodel.dc_arch = dc_arch
+        cdfmodel.dc_arch = dc_arch # gudepthcompnet18
         cdfmodel.conf_model = None
-        cdfmodel.conf_arch = conf_arch
+        cdfmodel.conf_arch = conf_arch # cbr3-c1
         cdfmodel.loss_dc_model = None
-        cdfmodel.loss_dc_arch = lossdc_arch
-        cdfmodel.overall_arch = overall_arch
-        cdfmodel.input_type = input_type
+        cdfmodel.loss_dc_arch = lossdc_arch # ged_depthcompnet
+        cdfmodel.overall_arch = overall_arch # dc1_only
+        cdfmodel.input_type = input_type # rgbd
 
         if 'dc' in overall_arch:
 

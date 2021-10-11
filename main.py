@@ -6,7 +6,7 @@ import torch
 import os
 import math
 import time
-
+import wandb
 
 
 def create_output_folder(args):
@@ -46,20 +46,27 @@ def save_arguments(args,output_folder):
                 value = 'nn.Module argument'
             paramsfile.write("{}: {}\n".format(arg, value))
 
+'''
+def setup_wandb():
+    if not os.path.exists("w_configs/wandb.key"):
+        wandb_key = input("Please enter your wandb key (https://wandb.ai/authorize): ")
+        with open("aws_configs/wandb.key", "w") as fh:
+            fh.write(wandb_key)
+'''
 
 def main_func(args):
 
     cdf = mc.ConfidenceDepthFrameworkFactory()
     val_loader, _ = df.create_data_loaders(args.data_path
                                            , loader_type='val'
-                                           , data_type= args.data_type
-                                           , modality= args.data_modality
-                                           , num_samples= args.num_samples
-                                           , depth_divisor= args.divider
-                                           , max_depth= args.max_depth
-                                           , max_gt_depth= args.max_gt_depth
-                                           , workers= args.workers
-                                           , batch_size=1)
+                                           , data_type= args.data_type          # visim
+                                           , modality= args.data_modality       # rgb-fd-bin
+                                           , num_samples= args.num_samples      # 0
+                                           , depth_divisor= args.divider        # 0
+                                           , max_depth= args.max_depth          # inf
+                                           , max_gt_depth= args.max_gt_depth    # inf
+                                           , workers= args.workers              # 8
+                                           , batch_size=1)      
     if not args.evaluate:
         train_loader, _ = df.create_data_loaders(args.data_path
                                                  , loader_type='train'
@@ -70,7 +77,7 @@ def main_func(args):
                                                  , max_depth=args.max_depth
                                                  , max_gt_depth=args.max_gt_depth
                                                  , workers=args.workers
-                                                 , batch_size=args.batch_size)
+                                                 , batch_size=args.batch_size)  # 1
 
     # evaluation mode
     if args.evaluate:
@@ -128,6 +135,9 @@ if __name__ == '__main__':
     arg_parser = trainer.create_command_parser()
     args = arg_parser.parse_args(arg_list)
     print(args)
+    print("now vars")
+    print(vars(args))
+    return
     main_func(args)
 
 
