@@ -140,7 +140,7 @@ if __name__ == '__main__':
     args = arg_parser.parse_args(arg_list)
     print(args)
 
-    with wandb.init(project="semester-project-DPN", config=vars(args), name=):
+    with wandb.init(project="semester-project-DPN", config=vars(args), name=time.strftime('%Y-%m-%d@%H-%M-%S')):
         main_func(args)
 
 
