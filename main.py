@@ -137,7 +137,7 @@ if __name__ == '__main__':
     print(args)
     print("now vars")
     print(vars(args))
-    return
+    exit()
     main_func(args)
 
 
