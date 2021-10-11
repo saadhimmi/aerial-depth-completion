@@ -9,6 +9,7 @@ import torch.backends.cudnn as cudnn
 cudnn.benchmark = True
 import GPUtilext
 import torch.optim
+import wandb
 from metrics import AverageMeter, Result,ConfidencePixelwiseThrAverageMeter
 
 
@@ -264,6 +265,7 @@ def report_epoch_error(filename_csv, epoch, avg):
                          'mae': avg.mae, 'delta1': avg.delta1, 'delta2': avg.delta2, 'delta3': avg.delta3,
                          'gpu_time': avg.gpu_time, 'data_time': avg.data_time, 'loss0': avg.loss0, 'loss1': avg.loss1,
                          'loss2': avg.loss2})
+        
 
 
 def print_error(type,num_total_samples, average, result, loss, data_time, gpu_time, i, epoch):
@@ -279,6 +281,16 @@ def print_error(type,num_total_samples, average, result, loss, data_time, gpu_ti
           'Loss={losses[0]}/{losses[1]}/{losses[2]} '.format(
         epoch, i + 1, num_total_samples, data_time=data_time,
         gpu_time=gpu_time, result=result, average=average, type=type, losses=loss))
+
+    wandb.log({"epoch": epoch, "t_Data": data_time, "t_GPU": gpu_time, 
+               "t_Data_avg":average.data_time, "t_GPU_avg":average.gpu_time,
+               "RMSE": result.rmse, "RMSE_avg": average.rmse,
+               "MAE":result.mae, "MAE_avg":average.mae,
+               "Delta1":result.delta1, "Delta1_avg":average.delta1,
+               "REL":result.absrel, "REL_avg":average.absrel,
+               "Lg10":result.lg10, "Lg10_avg":average.lg10,
+               "Loss_0":loss[0], "Loss_1":loss[1], "Loss_2":loss[2]}, step=i+1)
+
     attrlist = [[
         {'attr': 'id', 'name': 'ID'},
         {'attr': 'load', 'name': 'GPU util.', 'suffix': '%', 'transform': lambda x: x * 100, 'precision': 0},

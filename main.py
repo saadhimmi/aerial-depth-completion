@@ -106,6 +106,8 @@ def main_func(args):
         loss, loss_definition = cdf.create_loss(args.criterion, ('ln' in args.training_mode), (0.5 if 'dc1' in args.training_mode else 1.0))
         best_result_error = math.inf
 
+    # tell wandb to watch what the model gets up to: gradients, weights, and more!
+    wandb.watch(cdfmodel, loss, log="all", log_freq=10)
 
     for epoch in range(0, args.epochs):
         trainer.train(train_loader, cdfmodel, loss, optimizer, output_directory, epoch)
@@ -130,14 +132,15 @@ if __name__ == '__main__':
         trainer.create_command_parser().print_help()
         exit(0)
 
+    wandb.login()
+
     arg_list = sys.argv[1:]
 
     arg_parser = trainer.create_command_parser()
     args = arg_parser.parse_args(arg_list)
     print(args)
-    print("now vars")
-    print(vars(args))
-    exit()
-    main_func(args)
+
+    with wandb.init(project="semester-project-DPN", config=vars(args)):
+        main_func(args)
 
 
