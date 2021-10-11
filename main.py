@@ -131,7 +131,7 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         trainer.create_command_parser().print_help()
         exit(0)
-
+    print("Login to wandb...")
     wandb.login()
 
     arg_list = sys.argv[1:]
@@ -140,7 +140,7 @@ if __name__ == '__main__':
     args = arg_parser.parse_args(arg_list)
     print(args)
 
-    with wandb.init(project="semester-project-DPN", config=vars(args)):
+    with wandb.init(project="semester-project-DPN", config=vars(args), name=):
         main_func(args)
 
 
