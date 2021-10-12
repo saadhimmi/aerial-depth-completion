@@ -289,7 +289,7 @@ def print_error(type,num_total_samples, average, result, loss, data_time, gpu_ti
                "Delta1":result.delta1, "Delta1_avg":average.delta1,
                "REL":result.absrel, "REL_avg":average.absrel,
                "Lg10":result.lg10, "Lg10_avg":average.lg10,
-               "Loss_0":loss[0], "Loss_1":loss[1], "Loss_2":loss[2]}, step=i+1)
+               "Loss_0":loss[0], "Loss_1":loss[1], "Loss_2":loss[2]}, step=epoch*num_total_samples + (i+1))
 
     attrlist = [[
         {'attr': 'id', 'name': 'ID'},
