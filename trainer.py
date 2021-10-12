@@ -290,7 +290,7 @@ def print_error_train(num_total_samples, average, result, loss, data_time, gpu_t
                "train/Delta1":result.delta1, "train/Delta1_avg":average.delta1,
                "train/REL":result.absrel, "train/REL_avg":average.absrel,
                "train/Lg10":result.lg10, "train/Lg10_avg":average.lg10,
-               "train/Loss_0":loss[0], "train/Loss_1":loss[1], "train/Loss_2":loss[2]}, step=epoch*num_total_samples + (i+1))
+               "train/Loss_0":loss[0], "train/Loss_1":loss[1], "train/Loss_2":loss[2]})
 
     attrlist = [[
         {'attr': 'id', 'name': 'ID'},
@@ -325,7 +325,7 @@ def print_error_val(num_total_samples, average, result, loss, data_time, gpu_tim
                "val/Delta1":result.delta1, "val/Delta1_avg":average.delta1,
                "val/REL":result.absrel, "val/REL_avg":average.absrel,
                "val/Lg10":result.lg10, "val/Lg10_avg":average.lg10,
-               "val/Loss_0":loss[0], "val/Loss_1":loss[1], "val/Loss_2":loss[2]}, step=epoch*num_total_samples + (i+1))
+               "val/Loss_0":loss[0], "val/Loss_1":loss[1], "val/Loss_2":loss[2]})
 
     attrlist = [[
         {'attr': 'id', 'name': 'ID'},
