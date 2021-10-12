@@ -237,9 +237,9 @@ def train(train_loader, model, criterion, optimizer,output_folder,  epoch):
         end = time.time()
 
         if (i + 1) % 10 == 0:
-            print_error('Train',num_total_samples, average_meter[0].average(), result[0], criterion.loss, data_time, gpu_time, i, epoch)
+            print_error_train(num_total_samples, average_meter[0].average(), result[0], criterion.loss, data_time, gpu_time, i, epoch)
             if prediction[2] is not None:
-                print_error('Train',num_total_samples, average_meter[1].average(), result[1], criterion.loss, data_time, gpu_time, i, epoch)
+                print_error_train(num_total_samples, average_meter[1].average(), result[1], criterion.loss, data_time, gpu_time, i, epoch)
 
     report_epoch_error(os.path.join(output_folder,'train.csv'), epoch, average_meter[0].average())
     if prediction[2] is not None:
@@ -268,8 +268,9 @@ def report_epoch_error(filename_csv, epoch, avg):
         
 
 
-def print_error(type,num_total_samples, average, result, loss, data_time, gpu_time, i, epoch):
+def print_error_train(num_total_samples, average, result, loss, data_time, gpu_time, i, epoch):
     # print('=> output: {}'.format(output_directory))
+    type = 'Train'
     print('{type} Epoch: {0} [{1}/{2}]\t'
           't_Data={data_time:.3f}({average.data_time:.3f}) '
           't_GPU={gpu_time:.3f}({average.gpu_time:.3f})\n\t'
@@ -282,14 +283,14 @@ def print_error(type,num_total_samples, average, result, loss, data_time, gpu_ti
         epoch, i + 1, num_total_samples, data_time=data_time,
         gpu_time=gpu_time, result=result, average=average, type=type, losses=loss))
 
-    wandb.log({"epoch": epoch, "t_Data": data_time, "t_GPU": gpu_time, 
-               "t_Data_avg":average.data_time, "t_GPU_avg":average.gpu_time,
-               "RMSE": result.rmse, "RMSE_avg": average.rmse,
-               "MAE":result.mae, "MAE_avg":average.mae,
-               "Delta1":result.delta1, "Delta1_avg":average.delta1,
-               "REL":result.absrel, "REL_avg":average.absrel,
-               "Lg10":result.lg10, "Lg10_avg":average.lg10,
-               "Loss_0":loss[0], "Loss_1":loss[1], "Loss_2":loss[2]}, step=epoch*num_total_samples + (i+1))
+    wandb.log({"train/epoch": epoch, "train/t_Data": data_time, "train/t_GPU": gpu_time, 
+               "train/t_Data_avg":average.data_time, "train/t_GPU_avg":average.gpu_time,
+               "train/RMSE": result.rmse, "train/RMSE_avg": average.rmse,
+               "train/MAE":result.mae, "train/MAE_avg":average.mae,
+               "train/Delta1":result.delta1, "train/Delta1_avg":average.delta1,
+               "train/REL":result.absrel, "train/REL_avg":average.absrel,
+               "train/Lg10":result.lg10, "train/Lg10_avg":average.lg10,
+               "train/Loss_0":loss[0], "train/Loss_1":loss[1], "train/Loss_2":loss[2]}, step=epoch*num_total_samples + (i+1))
 
     attrlist = [[
         {'attr': 'id', 'name': 'ID'},
@@ -301,6 +302,40 @@ def print_error(type,num_total_samples, average, result, loss, data_time, gpu_ti
          {'attr': 'memoryFree', 'name': 'Memory free', 'suffix': 'MB', 'precision': 0}]]
     GPUtilext.showUtilization(attrList=attrlist)
 
+
+def print_error_val(num_total_samples, average, result, loss, data_time, gpu_time, i, epoch):
+    # print('=> output: {}'.format(output_directory))
+    type = 'Val'
+    print('{type} Epoch: {0} [{1}/{2}]\t'
+          't_Data={data_time:.3f}({average.data_time:.3f}) '
+          't_GPU={gpu_time:.3f}({average.gpu_time:.3f})\n\t'
+          'RMSE={result.rmse:.2f}({average.rmse:.2f}) '
+          'MAE={result.mae:.2f}({average.mae:.2f}) '
+          'Delta1={result.delta1:.3f}({average.delta1:.3f}) '
+          'REL={result.absrel:.3f}({average.absrel:.3f}) '
+          'Lg10={result.lg10:.3f}({average.lg10:.3f}) '
+          'Loss={losses[0]}/{losses[1]}/{losses[2]} '.format(
+        epoch, i + 1, num_total_samples, data_time=data_time,
+        gpu_time=gpu_time, result=result, average=average, type=type, losses=loss))
+
+    wandb.log({"val/epoch": epoch, "val/t_Data": data_time, "val/t_GPU": gpu_time, 
+               "val/t_Data_avg":average.data_time, "val/t_GPU_avg":average.gpu_time,
+               "val/RMSE": result.rmse, "val/RMSE_avg": average.rmse,
+               "val/MAE":result.mae, "val/MAE_avg":average.mae,
+               "val/Delta1":result.delta1, "val/Delta1_avg":average.delta1,
+               "val/REL":result.absrel, "val/REL_avg":average.absrel,
+               "val/Lg10":result.lg10, "val/Lg10_avg":average.lg10,
+               "val/Loss_0":loss[0], "val/Loss_1":loss[1], "val/Loss_2":loss[2]}, step=epoch*num_total_samples + (i+1))
+
+    attrlist = [[
+        {'attr': 'id', 'name': 'ID'},
+        {'attr': 'load', 'name': 'GPU util.', 'suffix': '%', 'transform': lambda x: x * 100, 'precision': 0},
+        {'attr': 'memoryUtil', 'name': 'Memory util.', 'suffix': '%', 'transform': lambda x: x * 100,
+         'precision': 0}],
+        [{'attr': 'memoryTotal', 'name': 'Memory total', 'suffix': 'MB', 'precision': 0},
+         {'attr': 'memoryUsed', 'name': 'Memory used', 'suffix': 'MB', 'precision': 0},
+         {'attr': 'memoryFree', 'name': 'Memory free', 'suffix': 'MB', 'precision': 0}]]
+    GPUtilext.showUtilization(attrList=attrlist)
 
 class ResultSampleImage():
     def __init__(self,output_directory,epoch, num_samples, total_images):
@@ -396,10 +431,10 @@ def validate(val_loader, model,criterion, epoch,  num_image_samples=4, print_fre
         end = time.time()
 
         if (i + 1) % print_frequency == 0:
-            print_error('Val', num_total_samples, average_meter[0].average(), result[0],
+            print_error_val(num_total_samples, average_meter[0].average(), result[0],
                         criterion.loss, data_time, gpu_time, i, epoch)
             if prediction[2] is not None:
-                print_error('Val', num_total_samples, average_meter[1].average(), result[1],
+                print_error_val(num_total_samples, average_meter[1].average(), result[1],
                             criterion.loss, data_time, gpu_time, i, epoch)
 
         if conf_recall and (i % 1 == 0):
