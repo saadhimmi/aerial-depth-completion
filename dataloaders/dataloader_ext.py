@@ -331,7 +331,7 @@ class MyDataloaderExt(data.Dataset):
                 mask_max = depth >  self.max_gt_depth
                 depth[mask_max] = 0
             result['gt_depth'] = depth
-
+        
         if pose == 'gt':
             if h5fextra is not None:
                 result['t_wc'] = np.array(h5fextra['gt_twc_data'])
@@ -491,6 +491,58 @@ class MyDataloaderExt(data.Dataset):
             result['wdde'] = np.array(dense_data[4, :, :])
 
         return result
+
+
+    def visim_jpg_exr_loader(self,img_path,extra_path,type,pose='none'): # Specific to Saad's dataset structure
+        result = dict()
+        #path, target = self.imgs[index]
+        h5f = h5py.File(img_path, "r")
+
+        #target depth
+        if 'dense_image_data' in h5f:
+            dense_data = h5f['dense_image_data']
+            depth = np.array(dense_data[0, :, :])
+            mask_array = depth > 10000 # in this software inf distance is zero.
+            depth[mask_array] = 0
+            result['gt_depth'] = depth
+            if 'normal_data' in h5f:
+                normal_rescaled = ((np.array(h5f['normal_data'],dtype='float32')/127.5) - 1.0)
+                result['normal_x'] = normal_rescaled[0,:,:]
+                result['normal_y'] = normal_rescaled[1,:,:]
+                result['normal_z'] = normal_rescaled[2,:,:]
+        elif 'depth' in h5f:
+            depth = np.array(h5f['depth'])
+            if not math.isinf(self.max_gt_depth) and self.max_gt_depth > 0:
+                mask_max = depth >  self.max_gt_depth
+                depth[mask_max] = 0
+            result['gt_depth'] = depth
+
+        # color data
+        if 'rgb_image_data' in h5f:
+            rgb = np.array(h5f['rgb_image_data'])
+        elif 'rgb' in h5f:
+            rgb = np.array(h5f['rgb'])
+        else:
+            rgb = None
+
+
+        if 'grey' in type:
+            grey_img = rgb2grayscale(rgb)
+            result['grey'] = grey_img
+
+        rgb = np.transpose(rgb, (1, 2, 0))
+
+        if 'rgb' in type:
+            result['rgb'] = rgb
+
+        #fake sparse data using the spasificator and ground-truth depth
+        if 'fd' in type:
+            result['fd'] = self.create_sparse_depth(rgb, depth)
+        if 'kfd' in type:
+            result['kfd'] = self.create_sparse_depth(rgb, depth)
+
+        return result
+
 
     def to_tensor(self, img):
 
