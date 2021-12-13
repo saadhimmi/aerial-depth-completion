@@ -6,15 +6,14 @@ import math
 import utils
 import torch
 import torch.backends.cudnn as cudnn
-cudnn.benchmark = True
+cudnn.benchmark = False
 import GPUtilext
 import torch.optim
 import wandb
 from metrics import AverageMeter, Result,ConfidencePixelwiseThrAverageMeter
 
 
-cudnn.benchmark = True
-
+depth_estimation_flag = False
 
 
 def create_command_parser():
@@ -163,13 +162,15 @@ def resume(filename, factory,only_evaluation):
     checkpoint = torch.load(filename)
     loss, loss_def = factory.create_loss_fromstate(checkpoint['loss_definition'])
     cdfmodel = factory.create_model_from_state(checkpoint['model_state'])
+    if depth_estimation_flag:
+        cdfmodel.freezeUnguidedLayers()
     cdfmodel, opt_parameters = factory.to_device(cdfmodel)
     epoch = checkpoint['epoch']
     if not only_evaluation:
         best_result_error = checkpoint['best_result_error']
         optimizer, scheduler = create_optimizer_fromstate(opt_parameters, checkpoint['optimizer_state'])
         return cdfmodel, loss, loss_def, best_result_error, optimizer, scheduler
-
+    
     return cdfmodel,loss,epoch
 
 
@@ -386,9 +387,9 @@ def validate(val_loader, model,criterion, epoch,  num_image_samples=4, print_fre
     model.eval()  # switch to train mode
     end = time.time()
     num_total_samples = len(val_loader)
+
     rsi = ResultSampleImage(output_folder,epoch,num_image_samples,num_total_samples)
     for i, (input, target, scale) in enumerate(val_loader):
-
         torch.cuda.synchronize()
         data_time = time.time() - end
 

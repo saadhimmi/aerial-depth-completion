@@ -15,6 +15,7 @@ import numpy as np
 epsilon= np.finfo(float).eps
 
 IMG_EXTENSIONS = ['.h5',]
+FLAG_H5_DATA = True
 
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
@@ -107,6 +108,12 @@ def load_class_extras(data_folder, type, image_list):
 def rgb2grayscale(rgb):
     return rgb[0,:,:] * 0.2989 + rgb[1,:,:] * 0.587 + rgb[2,:,:] * 0.114
 
+def grayscale2rgb(grey_img):
+    out = np.zeros( ( grey_img.shape[0], grey_img.shape[1], 3 ) )
+    out[:,:,0] = grey_img # same value in each channel
+    out[:,:,1] = grey_img
+    out[:,:,2] = grey_img
+    return out
 
 class Modality:
 
@@ -331,7 +338,7 @@ class MyDataloaderExt(data.Dataset):
                 mask_max = depth >  self.max_gt_depth
                 depth[mask_max] = 0
             result['gt_depth'] = depth
-
+        
         if pose == 'gt':
             if h5fextra is not None:
                 result['t_wc'] = np.array(h5fextra['gt_twc_data'])
@@ -492,6 +499,41 @@ class MyDataloaderExt(data.Dataset):
 
         return result
 
+
+    def visim_png_exr_loader(self,img_path,extra_path,type): # Specific to Saad's dataset structure
+        import OpenEXR as exr
+        import Imath
+        import imageio
+
+        result = dict()
+        if img_path[-1] == '/':
+            img_path = img_path[:-1] # os.path.split does not work when the last character is '/'
+
+        # Path hacking 
+        head, tail = os.path.split(img_path) # head = \cluster\my\path\to\img_folder  and  tail = timestamp.png
+        base_path, _ = os.path.split(head)
+        filename = tail[:-4] # remove png extension
+
+        # depth
+        exrfile = exr.InputFile(os.path.join(base_path,'depth',filename+'.exr'))
+        dw = exrfile.header()["dataWindow"]
+        isize = (dw.max.y - dw.min.y + 1, dw.max.x - dw.min.x + 1)
+        depth = exrfile.channel('Z', Imath.PixelType(Imath.PixelType.FLOAT))
+        depth = np.fromstring(depth, dtype=np.float32)
+        depth = np.reshape(depth, isize)
+        result['gt_depth'] = depth # (H x W)
+
+        # color data
+        result['grey'] = imageio.imread(img_path) # output is (H x W)
+        result['rgb'] = grayscale2rgb(result['grey']) # (H x W x 3)
+
+        #fake sparse data using the spasificator and ground-truth depth
+        if 'fd' in type:
+            result['fd'] = self.create_sparse_depth(rgb, depth)
+
+        return result
+
+
     def to_tensor(self, img):
 
         if not isinstance(img, np.ndarray):
@@ -526,7 +568,15 @@ class MyDataloaderExt(data.Dataset):
         class_entry = self.general_class_data[class_idx]
         img_path = class_entry['images'][img_idx]
         extra_path = (class_entry['extras'][img_idx] if class_entry['extras'] is not None else None)
-        channels_np = self.h5_loader_general(img_path, extra_path, self.modality)
+
+        if FLAG_H5_DATA:
+            channels_np = self.h5_loader_general(img_path, extra_path, self.modality)
+        else:
+            channels_np = self.visim_png_exr_loader(img_path, extra_path, self.modality)
+        # print('result dict is ', channels_np.keys())
+        # print('gt depth is ', channels_np['gt_depth'].shape)
+        # print('rgb ', channels_np['rgb'].shape)
+        # print('fd ', channels_np['fd'].shape)
 
         input_np = None
 

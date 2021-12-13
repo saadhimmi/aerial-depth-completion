@@ -55,7 +55,6 @@ def setup_wandb():
 '''
 
 def main_func(args):
-
     cdf = mc.ConfidenceDepthFrameworkFactory()
     val_loader, _ = df.create_data_loaders(args.data_path
                                            , loader_type='val'
@@ -140,7 +139,7 @@ if __name__ == '__main__':
     args = arg_parser.parse_args(arg_list)
     print(args)
 
-    with wandb.init(project="semester-project-DPN", config=vars(args), name=time.strftime('%Y-%m-%d@%H-%M-%S')):
+    with wandb.init(project="semester-project-DPN", config=vars(args), name=args.output):
         main_func(args)
 
 

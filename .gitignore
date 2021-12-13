@@ -1,6 +1,7 @@
 results
 data
 pretrain
+wandb
 lsf.*
 
 # Byte-compiled / optimized / DLL files
