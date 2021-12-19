@@ -18,5 +18,14 @@ PYTHON -V
 # 		--dcnet-arch ged_depthcompnet --dcnet-pretrained /cluster/scratch/shimmi/aerial-depth-completion/data/checkpoints/aerial-only-visim/model_best.pth.tar:dc_weights
 
 
-PYTHON main.py --evaluate "/cluster/scratch/shimmi/aerial-depth-completion/data/checkpoints/aerial_only_visim/model_best.pth.tar" \
-			   --data-path "/cluster/scratch/shimmi/aerial-depth-completion/data/datasets/aerial-only/"
+# PYTHON main.py --evaluate "/cluster/scratch/shimmi/aerial-depth-completion/data/checkpoints/aerial-only-visim/model_best.pth.tar" \
+# 			   --data-path "/cluster/scratch/shimmi/aerial-depth-completion/data/datasets/aerial-only/"
+
+# PYTHON main.py --evaluate "/cluster/scratch/shimmi/aerial-depth-completion/data/checkpoints/aerial-only-visim/model_best.pth.tar" \
+# 			   --data-path "/cluster/scratch/shimmi/aerial-depth-completion/data/datasets/my-sequences/"
+
+
+PYTHON main.py --output "dc PRETRAINED on loop data - 15 epochs - batch 32 - lr 1e-4" \
+		    --data-path "/cluster/scratch/shimmi/aerial-depth-completion/data/datasets/my-sequences/" \
+			--epochs 15 --num-samples 0 --workers 16 --criterion l2 -lr 0.0001 --batch-size 32 --training-mode dc1_only --dcnet-arch ged_depthcompnet \
+			--dcnet-pretrained /cluster/scratch/shimmi/aerial-depth-completion/data/checkpoints/aerial-only-visim/model_best.pth.tar:dc_weights

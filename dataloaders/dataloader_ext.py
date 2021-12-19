@@ -14,8 +14,8 @@ import numpy as np
 
 epsilon= np.finfo(float).eps
 
-IMG_EXTENSIONS = ['.h5',]
-FLAG_H5_DATA = True
+IMG_EXTENSIONS = ['.h5','.png',]
+FLAG_H5_DATA = False
 
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
@@ -529,7 +529,7 @@ class MyDataloaderExt(data.Dataset):
 
         #fake sparse data using the spasificator and ground-truth depth
         if 'fd' in type:
-            result['fd'] = self.create_sparse_depth(rgb, depth)
+            result['fd'] = self.create_sparse_depth(result['rgb'], result['gt_depth'])
 
         return result
 
