@@ -252,6 +252,13 @@ class MyDataloaderExt(data.Dataset):
         self.max_gt_depth = max_gt_depth
 
 
+    def set_transform(self, type):
+        if type == 'train':
+            self.transform = self.train_transform
+        elif type == 'val':
+            self.transform = self.val_transform
+        else:
+            raise RuntimeError('invalid type of dataset')
 
     def train_transform(self, channels):
         raise (RuntimeError("train_transform() is not implemented. "))
