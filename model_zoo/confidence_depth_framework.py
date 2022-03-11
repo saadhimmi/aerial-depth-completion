@@ -841,14 +841,37 @@ class MaskedMSELoss(nn.Module):
 
         valid_mask = ((depth_target>0).detach())
 
-        num_valids = valid_mask.sum()
-        assert (num_valids > 100), 'training image has less than 100 valid pixels'
+        # num_valids = valid_mask.sum()
+        #assert (num_valids > 100), 'training image has less than 100 valid pixels'
 
         diff = depth_target - depth_prediction
         diff = diff[valid_mask]
 
         final_loss = (diff ** 2).mean()
 
+        self.loss = [final_loss.item(),0,0]
+
+        return final_loss
+
+
+
+
+class MaskedL1Loss(nn.Module):
+    def __init__(self):
+        super(MaskedL1Loss, self).__init__()
+        self.loss = -1
+
+    def forward(self,depth_input, depth_prediction, depth_target,epoch=None):
+        assert depth_prediction.dim() == depth_target.dim(), "inconsistent dimensions"
+        valid_mask = (depth_target>0).detach()
+
+        # num_valids = valid_mask.sum()
+        #assert (num_valids > 100), 'training image has less than 100 valid pixels'
+
+        diff = depth_target - depth_prediction
+        diff = diff[valid_mask]
+
+        final_loss = diff.abs().mean()
         self.loss = [final_loss.item(),0,0]
 
         return final_loss
@@ -898,23 +921,3 @@ class MaskedAbsRelLoss(nn.Module):
 
         return final_loss
 
-
-class MaskedL1Loss(nn.Module):
-    def __init__(self):
-        super(MaskedL1Loss, self).__init__()
-        self.loss = -1
-
-    def forward(self,depth_input, depth_prediction, depth_target,epoch=None):
-        assert depth_prediction.dim() == depth_target.dim(), "inconsistent dimensions"
-        valid_mask = (depth_target>0).detach()
-
-        num_valids = valid_mask.sum()
-        assert (num_valids > 100), 'training image has less than 100 valid pixels'
-
-        diff = depth_target - depth_prediction
-        diff = diff[valid_mask]
-
-        final_loss = diff.abs().mean()
-        self.loss = [final_loss.item(),0,0]
-
-        return final_loss

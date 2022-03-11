@@ -218,15 +218,24 @@ class MyDataloaderExt(data.Dataset):
             self.transform = self.train_transform
         elif type == 'val':
             self.transform = self.val_transform
+        elif type == 'onedataset':
+            pass
         else:
             raise RuntimeError('invalid type of dataset')
 
-        dataset_folder = os.path.join(root, type)
+        if type == 'onedataset':
+            dataset_folder = root
+        else:
+            dataset_folder = os.path.join(root, type)
 
         general_img_index = []
         self.beginning_offset = 0
 
         classes, class_to_idx = find_classes(dataset_folder,('ds' if '-k' in modality else None))
+        print('--- DEBUG ---')
+        print('classes are : ', classes)
+        print('class_to_idx is ', class_to_idx)
+
         general_class_data = [None] * len(classes)
         for i_class, curr_class in enumerate(classes):
             class_images = load_class_dataset(dataset_folder, curr_class)
@@ -528,17 +537,28 @@ class MyDataloaderExt(data.Dataset):
         depth = exrfile.channel('Z', Imath.PixelType(Imath.PixelType.FLOAT))
         depth = np.fromstring(depth, dtype=np.float32)
         depth = np.reshape(depth, isize)
+
+        if not math.isinf(self.max_gt_depth) and self.max_gt_depth > 0:
+                mask_max = depth >  self.max_gt_depth
+                depth[mask_max] = 0
         result['gt_depth'] = depth # (H x W)
+            
 
         # color data
-        result['grey'] = imageio.imread(img_path) # output is (H x W)
-        result['rgb'] = grayscale2rgb(result['grey']) # (H x W x 3)
+        img = imageio.imread(img_path) # output is either grey:(H x W) or color:(H x W x 3) 
+
+        if len(img.shape) == 3 and img.shape[2] == 3: # it's color
+            result['rgb'] = img # (H x W x 3)
+            result['grey'] = rgb2grayscale(result['rgb']) # (H x W)
+        else:
+            result['grey'] = img # (H x W)
+            result['rgb'] = grayscale2rgb(result['grey']) # (H x W x 3)
 
         #fake sparse data using the spasificator and ground-truth depth
         if 'fd' in type:
             result['fd'] = self.create_sparse_depth(result['rgb'], result['gt_depth'])
 
-        return result
+        return result, filename
 
 
     def to_tensor(self, img):
@@ -579,7 +599,7 @@ class MyDataloaderExt(data.Dataset):
         if FLAG_H5_DATA:
             channels_np = self.h5_loader_general(img_path, extra_path, self.modality)
         else:
-            channels_np = self.visim_png_exr_loader(img_path, extra_path, self.modality)
+            channels_np, timestamp = self.visim_png_exr_loader(img_path, extra_path, self.modality)
         # print('result dict is ', channels_np.keys())
         # print('gt depth is ', channels_np['gt_depth'].shape)
         # print('rgb ', channels_np['rgb'].shape)
@@ -624,7 +644,7 @@ class MyDataloaderExt(data.Dataset):
 
         target_depth_tensor = self.to_tensor(target_data).unsqueeze(0)
 
-        return input_tensor, target_depth_tensor, channels_transformed_np['scale']
+        return input_tensor, target_depth_tensor, channels_transformed_np['scale'], timestamp
 
     def __len__(self):
         return len(self.general_img_index)

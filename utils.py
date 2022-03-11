@@ -295,3 +295,13 @@ def calc_from_sparse_input( in_sparse_map, voronoi=True, edt=True):
                     it.iternext()
 
     return res_voronoi, res_edt
+
+
+def add_lateral_bars(input, final_h=480, final_w=752, filling_value=np.inf):
+    x, y = input.shape
+    assert x==final_h, "For now, the function only deals with vertical bars"
+
+    input_with_bars = np.ones((final_h,final_w), dtype="float32")*filling_value
+    input_with_bars[:,int((final_w-y)/2):int((final_w+y)/2)] = input
+
+    return input_with_bars
