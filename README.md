@@ -16,9 +16,23 @@ For my semester project, data has been generated on VI-sensor simulator, Irchel 
 
 In the filesystem, data is organized this way:
 ```
-TODO_TODO
+path/to/sequences/train/or/val
+	h20p90
+	    color
+		timestamp1.png
+		timestamp2.png
+	    depth
+		timestamp1.exr
+		timestamp2.exr
+		...
+	h__p__
+	     color
+	         ...
+	     depth
+	         ...
+	...
 ```
-To easily reproduce core functionalities of this repository, you can download two sequences [here](TODO_TODO): h20p90 (used in training) and h30p90 (for evaluation).
+To easily reproduce core functionalities of this repository, you can download two sequences [here (TBD)](TODO_TODO): h20p90 (used in training) and h30p75 (for evaluation).
 
 ### Training
 Best training results have been obtained with the following command:
