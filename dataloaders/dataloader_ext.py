@@ -14,7 +14,8 @@ import numpy as np
 
 epsilon= np.finfo(float).eps
 
-IMG_EXTENSIONS = ['.h5',]
+IMG_EXTENSIONS = ['.h5','.png',]
+FLAG_H5_DATA = False
 
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
@@ -107,6 +108,12 @@ def load_class_extras(data_folder, type, image_list):
 def rgb2grayscale(rgb):
     return rgb[0,:,:] * 0.2989 + rgb[1,:,:] * 0.587 + rgb[2,:,:] * 0.114
 
+def grayscale2rgb(grey_img):
+    out = np.zeros( ( grey_img.shape[0], grey_img.shape[1], 3 ) )
+    out[:,:,0] = grey_img # same value in each channel
+    out[:,:,1] = grey_img
+    out[:,:,2] = grey_img
+    return out
 
 class Modality:
 
@@ -211,15 +218,24 @@ class MyDataloaderExt(data.Dataset):
             self.transform = self.train_transform
         elif type == 'val':
             self.transform = self.val_transform
+        elif type == 'onedataset':
+            pass
         else:
             raise RuntimeError('invalid type of dataset')
 
-        dataset_folder = os.path.join(root, type)
+        if type == 'onedataset':
+            dataset_folder = root
+        else:
+            dataset_folder = os.path.join(root, type)
 
         general_img_index = []
         self.beginning_offset = 0
 
         classes, class_to_idx = find_classes(dataset_folder,('ds' if '-k' in modality else None))
+        print('--- DEBUG ---')
+        print('classes are : ', classes)
+        print('class_to_idx is ', class_to_idx)
+
         general_class_data = [None] * len(classes)
         for i_class, curr_class in enumerate(classes):
             class_images = load_class_dataset(dataset_folder, curr_class)
@@ -245,6 +261,13 @@ class MyDataloaderExt(data.Dataset):
         self.max_gt_depth = max_gt_depth
 
 
+    def set_transform(self, type):
+        if type == 'train':
+            self.transform = self.train_transform
+        elif type == 'val':
+            self.transform = self.val_transform
+        else:
+            raise RuntimeError('invalid type of dataset')
 
     def train_transform(self, channels):
         raise (RuntimeError("train_transform() is not implemented. "))
@@ -493,53 +516,46 @@ class MyDataloaderExt(data.Dataset):
         return result
 
 
-    def visim_jpg_exr_loader(self,img_path,extra_path,type,pose='none'): # Specific to Saad's dataset structure
-        result = dict()
-        #path, target = self.imgs[index]
-        h5f = h5py.File(img_path, "r")
+    def visim_png_exr_loader(self,img_path,extra_path,type): # Specific to Saad's dataset structure
+        import OpenEXR as exr
+        import Imath
+        import imageio
 
-        #target depth
-        if 'dense_image_data' in h5f:
-            dense_data = h5f['dense_image_data']
-            depth = np.array(dense_data[0, :, :])
-            mask_array = depth > 10000 # in this software inf distance is zero.
-            depth[mask_array] = 0
-            result['gt_depth'] = depth
-            if 'normal_data' in h5f:
-                normal_rescaled = ((np.array(h5f['normal_data'],dtype='float32')/127.5) - 1.0)
-                result['normal_x'] = normal_rescaled[0,:,:]
-                result['normal_y'] = normal_rescaled[1,:,:]
-                result['normal_z'] = normal_rescaled[2,:,:]
-        elif 'depth' in h5f:
-            depth = np.array(h5f['depth'])
-            if not math.isinf(self.max_gt_depth) and self.max_gt_depth > 0:
+        result = dict()
+        if img_path[-1] == '/':
+            img_path = img_path[:-1] # os.path.split does not work when the last character is '/'
+
+        # Path hacking 
+        head, tail = os.path.split(img_path) # head = \cluster\my\path\to\img_folder  and  tail = timestamp.png
+        base_path, _ = os.path.split(head)
+        filename = tail[:-4] # remove png extension
+
+        # depth
+        exrfile = exr.InputFile(os.path.join(base_path,'depth',filename+'.exr'))
+        dw = exrfile.header()["dataWindow"]
+        isize = (dw.max.y - dw.min.y + 1, dw.max.x - dw.min.x + 1)
+        depth = exrfile.channel('Z', Imath.PixelType(Imath.PixelType.FLOAT))
+        depth = np.fromstring(depth, dtype=np.float32)
+        depth = np.reshape(depth, isize)
+
+        if not math.isinf(self.max_gt_depth) and self.max_gt_depth > 0:
                 mask_max = depth >  self.max_gt_depth
                 depth[mask_max] = 0
-            result['gt_depth'] = depth
+        result['gt_depth'] = depth # (H x W)
 
         # color data
-        if 'rgb_image_data' in h5f:
-            rgb = np.array(h5f['rgb_image_data'])
-        elif 'rgb' in h5f:
-            rgb = np.array(h5f['rgb'])
+        img = imageio.imread(img_path) # output is either grey:(H x W) or color:(H x W x 3) 
+
+        if len(img.shape) == 3 and img.shape[2] == 3: # it's color
+            result['rgb'] = img # (H x W x 3)
+            result['grey'] = rgb2grayscale(result['rgb']) # (H x W)
         else:
-            rgb = None
-
-
-        if 'grey' in type:
-            grey_img = rgb2grayscale(rgb)
-            result['grey'] = grey_img
-
-        rgb = np.transpose(rgb, (1, 2, 0))
-
-        if 'rgb' in type:
-            result['rgb'] = rgb
+            result['grey'] = img # (H x W)
+            result['rgb'] = grayscale2rgb(result['grey']) # (H x W x 3)
 
         #fake sparse data using the spasificator and ground-truth depth
         if 'fd' in type:
-            result['fd'] = self.create_sparse_depth(rgb, depth)
-        if 'kfd' in type:
-            result['kfd'] = self.create_sparse_depth(rgb, depth)
+            result['fd'] = self.create_sparse_depth(result['rgb'], result['gt_depth'])
 
         return result
 
@@ -578,7 +594,15 @@ class MyDataloaderExt(data.Dataset):
         class_entry = self.general_class_data[class_idx]
         img_path = class_entry['images'][img_idx]
         extra_path = (class_entry['extras'][img_idx] if class_entry['extras'] is not None else None)
-        channels_np = self.h5_loader_general(img_path, extra_path, self.modality)
+
+        if FLAG_H5_DATA:
+            channels_np = self.h5_loader_general(img_path, extra_path, self.modality)
+        else:
+            channels_np = self.visim_png_exr_loader(img_path, extra_path, self.modality)
+        # print('result dict is ', channels_np.keys())
+        # print('gt depth is ', channels_np['gt_depth'].shape)
+        # print('rgb ', channels_np['rgb'].shape)
+        # print('fd ', channels_np['fd'].shape)
 
         input_np = None
 

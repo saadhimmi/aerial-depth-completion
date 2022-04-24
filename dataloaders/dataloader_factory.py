@@ -39,7 +39,6 @@ def create_data_loaders(data_path, data_type='visim', loader_type='val', arch=''
 
         dataset = VISIMDataset(data_path, type=loader_type,
                                modality=modality, sparsifier=sparsifier, depth_divider=depth_divisor, is_resnet= ('resnet' in arch), max_gt_depth=max_gt_depth)
-
     elif data_type == 'visim_seq':
         from dataloaders.visim_dataloader import VISIMSeqDataset
         dataset = VISIMSeqDataset(data_path, type=loader_type,
