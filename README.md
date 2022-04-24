@@ -1,4 +1,45 @@
-# Aerial Depth Completion
+# Image-based Place Recognition using a Depth Prediction Network
+
+## Aerial Depth Prediction Network - Saad
+
+In this first section, I will specify the small subtleties related to my semester project. For more general instructions, refer to the second section below.
+
+Overall, the main two changes are: 
+- Introduction of Weights and Biases (WandB, W&B) for easier experiment, hyperparameter, loss and metrics monitoring. All the experiments logs carried for the semester project are still available [on this website](TODO_TODO)
+- Introduction of my own dataloader for images coming from VI-sensor simulator following my own data organization (```VISIMDataset```). Main advantage is the ability to consider all the data (all the sequences) as a single dataset and randomly split between them to get training and validation split. Note: this feature is enabled with ```FLAG_onedataset``` and the split ratio is set by ```train_data_ratio```, both in [main.py](TODO_TODO).
+
+To get a working depth estimation network, you have to set ```--num-samples 0``` and ```--max-gt-depth 399.75``` as the maximum depth from VISIM is 400 meters.
+Make sure to install the requirements using ```pip``` in a virtual environment following the General instructions (further below).
+
+### Data
+For my semester project, data has been generated on VI-sensor simulator, Irchel 3D model via AWS instances. In particular, I recorded Star trajectories at specific height (h) and pitch (p) pairs (c.f. Final Report).
+
+In the filesystem, data is organized this way:
+```
+TODO_TODO
+```
+To easily reproduce core functionalities of this repository, you can download two sequences [here](TODO_TODO): h20p90 (used in training) and h30p90 (for evaluation).
+
+### Training
+Best training results have been obtained with the following command:
+```
+TODO_TODO
+```
+You can download the best model weights for this semester project [here](TODO_TODO).
+
+### Evaluation
+One can run evaluation on a single sequence (here height-offset 30 and pitch 60) using the following command:
+```
+PYTHON main.py --output "your_run_name" \
+			         --evaluate "/path/to/best.pth.tar" \
+				       --num-samples 0 --max-gt-depth 399.75 \
+				       --data-path "path/to/ircheldata/sequences/val/h30p60"
+```
+Make sure to fill the right path to your model weights and to the specific sequence you want to evaluate on.
+
+
+
+## Aerial Depth Completion - General instructions
 
 This work is described in the letter "Aerial Single-View Depth Completion with Image-Guided Uncertainty Estimation", by Lucas Teixeira, Martin R.
 Oswald, Marc Pollefeys, Margarita Chli, published in the IEEE
