@@ -5,8 +5,8 @@
 In this first section, I will specify the small subtleties related to my semester project. For more general instructions, refer to the second section below.
 
 Overall, the main two changes are: 
-- Introduction of Weights and Biases (WandB, W&B) for easier experiment, hyperparameter, loss and metrics monitoring. All the experiments logs carried for the semester project are still available [on this website](TODO_TODO)
-- Introduction of my own dataloader for images coming from VI-sensor simulator following my own data organization (```VISIMDataset```). Main advantage is the ability to consider all the data (all the sequences) as a single dataset and randomly split between them to get training and validation split. Note: this feature is enabled with ```FLAG_onedataset``` and the split ratio is set by ```train_data_ratio```, both in [main.py](TODO_TODO).
+- Introduction of Weights and Biases (WandB, W&B) for easier experiment, hyperparameter, loss and metrics monitoring. All the experiments logs carried for the semester project are still available [on this website](https://wandb.ai/saadhimmi/semester-project-DPN)
+- Introduction of my own dataloader for images coming from VI-sensor simulator following my own data organization (```VISIMDataset```). Main advantage is the ability to consider all the data (all the sequences) as a single dataset and randomly split between them to get training and validation split. Note: this feature is enabled with ```FLAG_onedataset``` and the split ratio is set by ```train_data_ratio```, both in [main.py](https://github.com/saadhimmi/aerial-depth-completion/blob/e008ecf2f62bf4c77b22baad0098a3dcc0173d13/main.py).
 
 To get a working depth estimation network, you have to set ```--num-samples 0``` and ```--max-gt-depth 399.75``` as the maximum depth from VISIM is 400 meters.
 Make sure to install the requirements using ```pip``` in a virtual environment following the General instructions (further below).
@@ -23,17 +23,22 @@ To easily reproduce core functionalities of this repository, you can download tw
 ### Training
 Best training results have been obtained with the following command:
 ```
-TODO_TODO
+python main.py --output "IRCHEL (with max depth - full data) - PRETRAINED end-to-end - L2 criterion - 30 epochs - batch 32 - lr 1e-4" \ 
+		--data-path /path/to/your/sequences/train \
+		--max-gt-depth 399.75 --epochs 30 --num-samples 0 --workers 16 --criterion l2 -lr 0.0001 --batch-size 32 \
+		--training-mode dc1-cf1-ln1 --dcnet-arch ged_depthcompnet --lossnet-arch ged_depthcompnet \
+		--dcnet-pretrained /path/to/depth/completion/checkpoints/aerial-only-visim/model_best.pth.tar:dc_weights \
+		--lossnet-pretrained /path/to/depth/completion/checkpoints/aerial-only-visim/model_best.pth.tar:lossdc_weights
 ```
-You can download the best model weights for this semester project [here](TODO_TODO).
+You can download the best model weights for this semester project [here](https://drive.google.com/file/d/1BcxxDLj1mmIAMl9AcyqfJT3KVm4gd7yo/view?usp=sharing). For the best depth completion checkpoint (used above for transfer learning), they can be found [here](https://drive.google.com/drive/folders/1D6HYo5OX0V2PAO1m2YdTsPQbGiizbhgj?usp=sharing), as described in the General Instructions.
 
 ### Evaluation
 One can run evaluation on a single sequence (here height-offset 30 and pitch 60) using the following command:
 ```
-PYTHON main.py --output "your_run_name" \
-			         --evaluate "/path/to/best.pth.tar" \
-				       --num-samples 0 --max-gt-depth 399.75 \
-				       --data-path "path/to/ircheldata/sequences/val/h30p60"
+python main.py --output "your_run_name" \
+		--evaluate "/path/to/best.pth.tar" \
+		--num-samples 0 --max-gt-depth 399.75 \
+		--data-path "path/to/ircheldata/sequences/val/h30p60"
 ```
 Make sure to fill the right path to your model weights and to the specific sequence you want to evaluate on.
 
