@@ -44,7 +44,7 @@ python main.py --output "IRCHEL (with max depth - full data) - PRETRAINED end-to
 		--dcnet-pretrained /path/to/depth/completion/checkpoints/aerial-only-visim/model_best.pth.tar:dc_weights \
 		--lossnet-pretrained /path/to/depth/completion/checkpoints/aerial-only-visim/model_best.pth.tar:lossdc_weights
 ```
-You can download the best model weights for this semester project [here](https://drive.google.com/file/d/1BcxxDLj1mmIAMl9AcyqfJT3KVm4gd7yo/view?usp=sharing). For the best depth completion checkpoint (used above for transfer learning), they can be found [here](https://drive.google.com/drive/folders/1D6HYo5OX0V2PAO1m2YdTsPQbGiizbhgj?usp=sharing), as described in the General Instructions.
+You can download the best model weights for this semester project [here](https://drive.google.com/file/d/1BcxxDLj1mmIAMl9AcyqfJT3KVm4gd7yo/view?usp=sharing) or use the checkpoint in the repo [(here)](https://github.com/saadhimmi/aerial-depth-completion/blob/4cc7c91d2b4c8d34130265b7ccdcc71d2a5dcce3/weights/best_weights.pth.tar). For the best depth completion checkpoint (used above for transfer learning), they can be found [here](https://drive.google.com/drive/folders/1D6HYo5OX0V2PAO1m2YdTsPQbGiizbhgj?usp=sharing), as described in the General Instructions.
 
 ### Evaluation
 One can run evaluation on a single sequence (here height-offset 30 and pitch 60) using the following command:
