@@ -6,15 +6,20 @@ import math
 import utils
 import torch
 import torch.backends.cudnn as cudnn
-cudnn.benchmark = True
+cudnn.benchmark = False
 import GPUtilext
 import torch.optim
 import wandb
+
 from metrics import AverageMeter, Result,ConfidencePixelwiseThrAverageMeter
 
+import matplotlib
+import OpenEXR
+import Imath
+import numpy as np
+import torch.nn.functional as F
 
-cudnn.benchmark = True
-
+depth_estimation_flag = False
 
 
 def create_command_parser():
@@ -163,13 +168,15 @@ def resume(filename, factory,only_evaluation):
     checkpoint = torch.load(filename)
     loss, loss_def = factory.create_loss_fromstate(checkpoint['loss_definition'])
     cdfmodel = factory.create_model_from_state(checkpoint['model_state'])
+    if depth_estimation_flag:
+        cdfmodel.freezeUnguidedLayers()
     cdfmodel, opt_parameters = factory.to_device(cdfmodel)
     epoch = checkpoint['epoch']
     if not only_evaluation:
         best_result_error = checkpoint['best_result_error']
         optimizer, scheduler = create_optimizer_fromstate(opt_parameters, checkpoint['optimizer_state'])
         return cdfmodel, loss, loss_def, best_result_error, optimizer, scheduler
-
+    
     return cdfmodel,loss,epoch
 
 
@@ -292,15 +299,16 @@ def print_error_train(num_total_samples, average, result, loss, data_time, gpu_t
                "train/Lg10":result.lg10, "train/Lg10_avg":average.lg10,
                "train/Loss_0":loss[0], "train/Loss_1":loss[1], "train/Loss_2":loss[2]})
 
-    attrlist = [[
-        {'attr': 'id', 'name': 'ID'},
-        {'attr': 'load', 'name': 'GPU util.', 'suffix': '%', 'transform': lambda x: x * 100, 'precision': 0},
-        {'attr': 'memoryUtil', 'name': 'Memory util.', 'suffix': '%', 'transform': lambda x: x * 100,
-         'precision': 0}],
-        [{'attr': 'memoryTotal', 'name': 'Memory total', 'suffix': 'MB', 'precision': 0},
-         {'attr': 'memoryUsed', 'name': 'Memory used', 'suffix': 'MB', 'precision': 0},
-         {'attr': 'memoryFree', 'name': 'Memory free', 'suffix': 'MB', 'precision': 0}]]
-    GPUtilext.showUtilization(attrList=attrlist)
+    if epoch == 0:
+        attrlist = [[
+            {'attr': 'id', 'name': 'ID'},
+            {'attr': 'load', 'name': 'GPU util.', 'suffix': '%', 'transform': lambda x: x * 100, 'precision': 0},
+            {'attr': 'memoryUtil', 'name': 'Memory util.', 'suffix': '%', 'transform': lambda x: x * 100,
+            'precision': 0}],
+            [{'attr': 'memoryTotal', 'name': 'Memory total', 'suffix': 'MB', 'precision': 0},
+            {'attr': 'memoryUsed', 'name': 'Memory used', 'suffix': 'MB', 'precision': 0},
+            {'attr': 'memoryFree', 'name': 'Memory free', 'suffix': 'MB', 'precision': 0}]]
+        GPUtilext.showUtilization(attrList=attrlist)
 
 
 def print_error_val(num_total_samples, average, result, loss, data_time, gpu_time, i, epoch):
@@ -326,16 +334,17 @@ def print_error_val(num_total_samples, average, result, loss, data_time, gpu_tim
                "val/REL":result.absrel, "val/REL_avg":average.absrel,
                "val/Lg10":result.lg10, "val/Lg10_avg":average.lg10,
                "val/Loss_0":loss[0], "val/Loss_1":loss[1], "val/Loss_2":loss[2]})
-
-    attrlist = [[
-        {'attr': 'id', 'name': 'ID'},
-        {'attr': 'load', 'name': 'GPU util.', 'suffix': '%', 'transform': lambda x: x * 100, 'precision': 0},
-        {'attr': 'memoryUtil', 'name': 'Memory util.', 'suffix': '%', 'transform': lambda x: x * 100,
-         'precision': 0}],
-        [{'attr': 'memoryTotal', 'name': 'Memory total', 'suffix': 'MB', 'precision': 0},
-         {'attr': 'memoryUsed', 'name': 'Memory used', 'suffix': 'MB', 'precision': 0},
-         {'attr': 'memoryFree', 'name': 'Memory free', 'suffix': 'MB', 'precision': 0}]]
-    GPUtilext.showUtilization(attrList=attrlist)
+    
+    if epoch == 0:
+        attrlist = [[
+            {'attr': 'id', 'name': 'ID'},
+            {'attr': 'load', 'name': 'GPU util.', 'suffix': '%', 'transform': lambda x: x * 100, 'precision': 0},
+            {'attr': 'memoryUtil', 'name': 'Memory util.', 'suffix': '%', 'transform': lambda x: x * 100,
+            'precision': 0}],
+            [{'attr': 'memoryTotal', 'name': 'Memory total', 'suffix': 'MB', 'precision': 0},
+            {'attr': 'memoryUsed', 'name': 'Memory used', 'suffix': 'MB', 'precision': 0},
+            {'attr': 'memoryFree', 'name': 'Memory free', 'suffix': 'MB', 'precision': 0}]]
+        GPUtilext.showUtilization(attrList=attrlist)
 
 class ResultSampleImage():
     def __init__(self,output_directory,epoch, num_samples, total_images):
@@ -375,8 +384,6 @@ class ResultSampleImage():
         if (i % self.sample_step) == 0:
             self.save(input, prediction, target,((i % 2*self.sample_step) == 0))
 
-
-
 def validate(val_loader, model,criterion, epoch,  num_image_samples=4, print_frequency=10, output_folder=None, conf_recall=False,conf_threshold=0):
     average_meter = [AverageMeter(), AverageMeter()]
 
@@ -386,18 +393,56 @@ def validate(val_loader, model,criterion, epoch,  num_image_samples=4, print_fre
     model.eval()  # switch to train mode
     end = time.time()
     num_total_samples = len(val_loader)
-    rsi = ResultSampleImage(output_folder,epoch,num_image_samples,num_total_samples)
-    for i, (input, target, scale) in enumerate(val_loader):
+    
+    save_images = True
 
+    if save_images:
+        # --- To save images --- #
+        # color_path = os.path.join(output_folder,'transformed','color')
+        # gt_path = os.path.join(output_folder,'transformed','depth')
+        depth_path = os.path.join(output_folder,'transformed','predict')
+        # os.makedirs(color_path)
+        # os.makedirs(gt_path)
+        os.makedirs(depth_path)
+
+
+    rsi = ResultSampleImage(output_folder,epoch,num_image_samples,num_total_samples)
+    for i, (input, target, scale, timestamp) in enumerate(val_loader):
         torch.cuda.synchronize()
         data_time = time.time() - end
 
         # compute pred
         end = time.time()
 
-        input, target = input.cuda(), target.cuda()
-        target_depth = target[:, 0:1, :, :]
+        input, target = input.cuda(), target.cuda() # input[0,0:3,:,:] RGB
+        target_depth = target[:, 0:1, :, :]  # target_depth
+
         prediction = model(input)
+        #  prediction[0] = output depth (240,320)
+
+        if save_images:
+            # --- Save images --- #
+            # # RGB
+            # matplotlib.image.imsave(os.path.join(color_path,timestamp[0]+'.png'), np.transpose(input[0,0:3,:,:].cpu().detach().numpy(),(1,2,0)))
+            
+            # # GT depth
+            # map = target_depth[0,0,:,:].cpu().detach().numpy()
+            # exr_header = OpenEXR.Header(map.shape[1], map.shape[0])
+            # exr_header['channels'] = {'Z': Imath.Channel(Imath.PixelType(Imath.PixelType.FLOAT))} 
+            # exr = OpenEXR.OutputFile(os.path.join(gt_path,timestamp[0]+'.exr'), exr_header)
+            # exr.writePixels({'Z': map.tostring()})
+            # # imageio.imwrite(os.path.join(gt_path,timestamp[0]+'.exr'), target_depth[0,0,:,:].cpu().detach().numpy())
+
+            # predicted depth
+            upsized_prediction = F.interpolate(prediction[0], size=(480,640), mode='bilinear') # We keep aspect ratio ...
+            upsized_map = upsized_prediction[0,0,:,:].cpu().detach().numpy()
+            map = utils.add_lateral_bars(upsized_map) # ... then we fill with lateral bars
+            exr_header = OpenEXR.Header(map.shape[1], map.shape[0])
+            exr_header['channels'] = {'Z': Imath.Channel(Imath.PixelType(Imath.PixelType.FLOAT))}
+            exr = OpenEXR.OutputFile(os.path.join(depth_path,timestamp[0]+'.exr'), exr_header)
+            exr.writePixels({'Z': map.tostring()})
+            # imageio.imwrite(os.path.join(depth_path,timestamp[0]+'.exr'), prediction[0][0,0,:,:].cpu().detach().numpy())
+
         if prediction[2] is not None:  # d1,c1,d2
             loss = criterion(input, prediction[0][:, 0:1, :, :], prediction[2][:, 0:1, :, :], target_depth, epoch)
         else:

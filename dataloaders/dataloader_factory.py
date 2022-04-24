@@ -59,6 +59,9 @@ def create_data_loaders(data_path, data_type='visim', loader_type='val', arch=''
             worker_init_fn=lambda work_id:np.random.seed(work_id))
         print("=> Train loader:{}".format(len(dataset)))
             # worker_init_fn ensures different sampling patterns for each data loading thread
+    else:
+        print("=> NO data loaders created.")
+        return None, dataset
 
     print("=> data loaders created.")
     return loader, dataset

@@ -7,6 +7,8 @@ import os
 import math
 import time
 import wandb
+import numpy as np
+
 
 
 def create_output_folder(args):
@@ -30,12 +32,18 @@ def create_output_folder(args):
     return output_directory
 
 
-def create_eval_output_folder(args):
+def create_eval_output_folder(args,prefix=None):
     current_time = time.strftime('%Y-%m-%d@%H-%M-%S')
-    if args.output:
-        output_directory = os.path.join('results', '{}_{}'.format(args.output,current_time))
+    if prefix is None:
+        if args.output:
+            output_directory = os.path.join('results', '{}_{}'.format(args.output,current_time))
+        else:
+            output_directory = os.path.join('results','eval.time={}'.format(current_time))
     else:
-        output_directory = os.path.join('results','eval.time={}'.format(current_time))
+        if args.output:
+            output_directory = os.path.join(prefix,'results', '{}'.format(args.output))
+        else:
+            output_directory = os.path.join(prefix,'results','eval.time={}'.format(current_time))
     return output_directory
 
 
@@ -54,35 +62,69 @@ def setup_wandb():
             fh.write(wandb_key)
 '''
 
-def main_func(args):
+FLAG_onedataset = True
+train_data_ratio = 0.8
 
+def main_func(args):
     cdf = mc.ConfidenceDepthFrameworkFactory()
-    val_loader, _ = df.create_data_loaders(args.data_path
-                                           , loader_type='val'
-                                           , data_type= args.data_type          # visim
-                                           , modality= args.data_modality       # rgb-fd-bin
-                                           , num_samples= args.num_samples      # 0
-                                           , depth_divisor= args.divider        # 0
-                                           , max_depth= args.max_depth          # inf
-                                           , max_gt_depth= args.max_gt_depth    # inf
-                                           , workers= args.workers              # 8
-                                           , batch_size=1)      
-    if not args.evaluate:
-        train_loader, _ = df.create_data_loaders(args.data_path
-                                                 , loader_type='train'
-                                                 , data_type=args.data_type
-                                                 , modality=args.data_modality
-                                                 , num_samples=args.num_samples
-                                                 , depth_divisor=args.divider
-                                                 , max_depth=args.max_depth
-                                                 , max_gt_depth=args.max_gt_depth
-                                                 , workers=args.workers
-                                                 , batch_size=args.batch_size)  # 1
+    if FLAG_onedataset:
+        _, full_dataset = df.create_data_loaders(args.data_path
+                                            , loader_type='onedataset'
+                                            , data_type= args.data_type          # visim
+                                            , modality= args.data_modality       # rgb-fd-bin
+                                            , num_samples= args.num_samples      # 0
+                                            , depth_divisor= args.divider        # 0
+                                            , max_depth= args.max_depth          # inf
+                                            , max_gt_depth= args.max_gt_depth)   # inf
+
+        if not args.evaluate:
+            dataset_size = full_dataset.__len__()
+            train_size = int(np.floor(dataset_size * train_data_ratio))
+            test_size = int(np.ceil(dataset_size * (1 - train_data_ratio)))
+
+            full_dataset.set_transform('train')
+            train_dataset, _ = torch.utils.data.random_split(full_dataset, [train_size, test_size])
+            full_dataset.set_transform('val')
+            _, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size])
+
+            train_loader = torch.utils.data.DataLoader(train_dataset, 
+                                                batch_size=args.batch_size, shuffle=True,
+                                                num_workers=args.workers, pin_memory=True, sampler=None,
+                                                worker_init_fn=lambda work_id:np.random.seed(work_id))
+        else:
+            full_dataset.set_transform('val')
+            test_dataset = full_dataset
+
+        val_loader = torch.utils.data.DataLoader(test_dataset,
+                                            batch_size=1, shuffle=False, num_workers=args.workers, pin_memory=True)
+        
+    else:
+        val_loader, _ = df.create_data_loaders(args.data_path
+                                            , loader_type='val'
+                                            , data_type= args.data_type          # visim
+                                            , modality= args.data_modality       # rgb-fd-bin
+                                            , num_samples= args.num_samples      # 0
+                                            , depth_divisor= args.divider        # 0
+                                            , max_depth= args.max_depth          # inf
+                                            , max_gt_depth= args.max_gt_depth    # inf
+                                            , workers= args.workers              # 8
+                                            , batch_size=1)      
+        if not args.evaluate:
+            train_loader, _ = df.create_data_loaders(args.data_path
+                                                    , loader_type='train'
+                                                    , data_type=args.data_type
+                                                    , modality=args.data_modality
+                                                    , num_samples=args.num_samples
+                                                    , depth_divisor=args.divider
+                                                    , max_depth=args.max_depth
+                                                    , max_gt_depth=args.max_gt_depth
+                                                    , workers=args.workers
+                                                    , batch_size=args.batch_size)  # 1
 
     # evaluation mode
     if args.evaluate:
         cdfmodel,loss, epoch = trainer.resume(args.evaluate,cdf,True)
-        output_directory = create_eval_output_folder(args)
+        output_directory = create_eval_output_folder(args,prefix='/cluster/scratch/shimmi/aerial-depth-completion')
         os.makedirs(output_directory)
         print(output_directory)
         save_arguments(args,output_directory)
@@ -140,7 +182,7 @@ if __name__ == '__main__':
     args = arg_parser.parse_args(arg_list)
     print(args)
 
-    with wandb.init(project="semester-project-DPN", config=vars(args), name=time.strftime('%Y-%m-%d@%H-%M-%S')):
+    with wandb.init(project="semester-project-DPN", config=vars(args), name=args.output):
         main_func(args)
 
 

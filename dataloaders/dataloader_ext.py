@@ -557,7 +557,7 @@ class MyDataloaderExt(data.Dataset):
         if 'fd' in type:
             result['fd'] = self.create_sparse_depth(result['rgb'], result['gt_depth'])
 
-        return result
+        return result, filename
 
 
     def to_tensor(self, img):
@@ -598,7 +598,7 @@ class MyDataloaderExt(data.Dataset):
         if FLAG_H5_DATA:
             channels_np = self.h5_loader_general(img_path, extra_path, self.modality)
         else:
-            channels_np = self.visim_png_exr_loader(img_path, extra_path, self.modality)
+            channels_np, timestamp = self.visim_png_exr_loader(img_path, extra_path, self.modality)
         # print('result dict is ', channels_np.keys())
         # print('gt depth is ', channels_np['gt_depth'].shape)
         # print('rgb ', channels_np['rgb'].shape)
@@ -643,7 +643,7 @@ class MyDataloaderExt(data.Dataset):
 
         target_depth_tensor = self.to_tensor(target_data).unsqueeze(0)
 
-        return input_tensor, target_depth_tensor, channels_transformed_np['scale']
+        return input_tensor, target_depth_tensor, channels_transformed_np['scale'], timestamp
 
     def __len__(self):
         return len(self.general_img_index)

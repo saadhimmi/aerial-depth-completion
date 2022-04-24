@@ -14,12 +14,12 @@ class VISIMDataset(MyDataloaderExt):
         if is_resnet:
             self.output_size = (228, 304)
         else:
-            self.output_size = (240, 320)
+            self.output_size = (240, 320) # input : (480 , 752)
 
     def train_transform(self, attrib_list):
 
-        iheight = attrib_list['gt_depth'].shape[0]
-        iwidth = attrib_list['gt_depth'].shape[1]
+        iheight = attrib_list['gt_depth'].shape[0] # 480
+        iwidth = attrib_list['gt_depth'].shape[1]  # 752
 
         s = np.random.uniform(1.0, 1.5) # random scaling
 
@@ -73,11 +73,11 @@ class VISIMDataset(MyDataloaderExt):
 
     def val_transform(self,  attrib_list):
 
-        iheight = attrib_list['gt_depth'].shape[0]
-        iwidth = attrib_list['gt_depth'].shape[1]
+        iheight = attrib_list['gt_depth'].shape[0] # 480
+        iwidth = attrib_list['gt_depth'].shape[1]  # 752
 
         transform = transforms.Compose([
-            transforms.Resize(240.0 / iheight),
+            transforms.Resize(240.0 / iheight), # Resize(0.5)
             transforms.CenterCrop(self.output_size),
         ])
 

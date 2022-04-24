@@ -291,6 +291,12 @@ class ConfidenceDepthFrameworkModel(torch.nn.Module):
 
         return opt_parameters
 
+    def freezeUnguidedLayers(self):
+        for param in dc_model.d_net.parameters(): # dc_model = GEDNet
+            param.requires_grad = False 
+        for param in loss_dc_model.d_net.parameters():
+            param.requires_grad = False
+
 
 ###########################################
 #Confidence nets
@@ -466,7 +472,7 @@ class GEDNet(nn.Module):
         x0_rgb = x0[:, :3, :, :]
         x0_d = x0[:, 3:4, :, :]
 
-        if x0.shape[1] == 4:
+        if x0.shape[1] == 4: # nb of channels
             c0 = (x0_d > 0).float()
         else:
             c0 = x0[:, 4:5, :, :]
@@ -835,14 +841,37 @@ class MaskedMSELoss(nn.Module):
 
         valid_mask = ((depth_target>0).detach())
 
-        num_valids = valid_mask.sum()
-        assert (num_valids > 100), 'training image has less than 100 valid pixels'
+        # num_valids = valid_mask.sum()
+        #assert (num_valids > 100), 'training image has less than 100 valid pixels'
 
         diff = depth_target - depth_prediction
         diff = diff[valid_mask]
 
         final_loss = (diff ** 2).mean()
 
+        self.loss = [final_loss.item(),0,0]
+
+        return final_loss
+
+
+
+
+class MaskedL1Loss(nn.Module):
+    def __init__(self):
+        super(MaskedL1Loss, self).__init__()
+        self.loss = -1
+
+    def forward(self,depth_input, depth_prediction, depth_target,epoch=None):
+        assert depth_prediction.dim() == depth_target.dim(), "inconsistent dimensions"
+        valid_mask = (depth_target>0).detach()
+
+        # num_valids = valid_mask.sum()
+        #assert (num_valids > 100), 'training image has less than 100 valid pixels'
+
+        diff = depth_target - depth_prediction
+        diff = diff[valid_mask]
+
+        final_loss = diff.abs().mean()
         self.loss = [final_loss.item(),0,0]
 
         return final_loss
@@ -892,23 +921,3 @@ class MaskedAbsRelLoss(nn.Module):
 
         return final_loss
 
-
-class MaskedL1Loss(nn.Module):
-    def __init__(self):
-        super(MaskedL1Loss, self).__init__()
-        self.loss = -1
-
-    def forward(self,depth_input, depth_prediction, depth_target,epoch=None):
-        assert depth_prediction.dim() == depth_target.dim(), "inconsistent dimensions"
-        valid_mask = (depth_target>0).detach()
-
-        num_valids = valid_mask.sum()
-        assert (num_valids > 100), 'training image has less than 100 valid pixels'
-
-        diff = depth_target - depth_prediction
-        diff = diff[valid_mask]
-
-        final_loss = diff.abs().mean()
-        self.loss = [final_loss.item(),0,0]
-
-        return final_loss
