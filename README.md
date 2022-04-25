@@ -32,7 +32,7 @@ path/to/sequences/train/or/val
 	         ...
 	...
 ```
-To easily reproduce core functionalities of this repository, you can download two sequences [here (TBD)](TODO_TODO): h20p90 (used in training) and h30p75 (for evaluation).
+To easily reproduce core functionalities of this repository, you can download two sequences [here](https://www.sendbig.com/view-files?Id=0b0adf8e-97df-5098-f025-ec6ddbfcef2e): h20p90 (used in training) and h30p75 (for evaluation).
 
 ### Training
 Best training results have been obtained with the following command:
